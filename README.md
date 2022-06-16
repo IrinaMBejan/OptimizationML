@@ -42,7 +42,7 @@ However, due to limited size on Github, we have not added them here (>30GB).
 
 3. To automatically run all the configuration (dataset, optimizer, arhitecture), we offer you some shell scripts which can be run as:
 - To train all models, run: `chmod +x train_all` and `./train_all`
-- To compute sharpness for all trained models, run: `chmod +x compute_sharpness` and `./compute_sharpness_all.sh`
+- To compute sharpness for all trained models, run: `chmod +x compute_sharpness_all` and `./compute_sharpness_all.sh`
 
 ### Authors
 
