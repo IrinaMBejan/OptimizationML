@@ -60,22 +60,6 @@ def load_data(dataset):
     raise Exception("Given dataset name is unknown!")
 
 
-def preprocess_data_for_sharpness(train_data, dataset, device):
-    # This cell preproccesses data for calculating the sharpness. If you change the dataset, make sure that this cell is rerun.
-    print(f'Preporcessing dataset {dataset} in order to calculate sharpness...')
-    begin = datetime.now()
-
-    x = torch.stack([v[0] for v in train_data])
-    y = torch.tensor(train_data.targets)
-
-    x, y = x.to(device), y.to(device)
-    data = namedtuple('_','x y n')(x=x, y=y,n=len(y))
-
-    print(f'Time needed {datetime.now() - begin}')
-
-    return data
-
-
 def get_model_from(architecture, dataset):
     if architecture not in ['SimpleBatch', 'ComplexBatch', 'MiddleBatch'] or dataset not in ['CIFAR10' or 'FashionMNIST']:
         raise Exception("Given model name is unknown!")

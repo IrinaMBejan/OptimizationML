@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -201,3 +203,19 @@ def get_model(architecture, dataset):
         return MiddleBatch(input_channels=input_channels, size=size)
     if architecture == 'ComplexBatch':
         return ComplexBatch(input_channels=input_channels, size=size)
+
+
+def preprocess_data_for_sharpness(train_data, dataset, device):
+    # This cell preproccesses data for calculating the sharpness. If you change the dataset, make sure that this cell is rerun.
+    print(f'Preporcessing dataset {dataset} in order to calculate sharpness...')
+    begin = datetime.now()
+
+    x = torch.stack([v[0] for v in train_data])
+    y = torch.tensor(train_data.targets)
+
+    x, y = x.to(device), y.to(device)
+    data = namedtuple('_','x y n')(x=x, y=y,n=len(y))
+
+    print(f'Time needed {datetime.now() - begin}')
+
+    return data
