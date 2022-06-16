@@ -5,12 +5,17 @@ One of the biggest challenges in deep learning is an understanding generalizatio
 
 ### Project structure
 - The folder `/checkpoints` contains results from current runs that you do within the repository once you fork it.
-- The folder `/checkpoints_test` contains some precomputed checkpoints for the model illustrated in the `Training.ipynb` notebook.
+- The folder `/checkpoints_test` contains some precomputed checkpoints for the model illustrated in the `TrainingSample.ipynb` notebook. The structure of the checkpoints folder is:
+  - `/DATASET` (_FashionMNIST_/_CIFAR10_)
+    - `/MODEL_ARCHITECTURE` (_SimpleBatch_/_MiddleBatch_/_ComplexBatch_)
+      - `/epochX` (_50_/_100_/_150_/_200_): We train all models up to 200 epochs and save the checkpoints every 50 epochs.
+      - `/converged`: Whenever the model converges (loss is lower than tolerance set), we save again the checkpoints.
 - The folder `/data` should be empty by default and will be populated with data when training the models.
+- The folder `/results` contains .csv files with results for each of the datasets.
 - The folder `/optimizers` contains implementation of AdaBound, AdaShift and SAM in torch, collected from external sources.
 - The folder `/sharpness` contains the approximate calculation of the Hessian and sharpness
-- Notebooks `Training.ipynb`, `Training_Systematic.ipynb`, `DataAnalysis.ipynb` illustrate our work.
-- The files within the folder represent:
+- Notebooks `TrainingSample.ipynb`, `DataAnalysis.ipynb` illustrate our work and are presented below.
+- The files within the repository represent:
 <br />`models.py` - Contains the architecture of the models we considered.
 <br />`main.py` - Able to run the trainings and computation for a given configuration. A configuration is given by *dataset*, *model architecture*, *optimizer*
 <br />`helpers.py` - Various utils used for training, testing, computation, data preprocessing.
@@ -19,10 +24,10 @@ One of the biggest challenges in deep learning is an understanding generalizatio
 We require installation of *Python*. The needed libraries are stated in `requirements.txt`, to install them run: `pip install -r requirements.txt`,
 or `pip3 install -r requirements.txt` (Python 3).
 1. To explore our work, we encourage you to look through our notebooks:
-- `Training.ipynb` allows you to train a model and compute sharpness for a given dataset, architecture and optimizer
-- `DataAnalysis.ipynb` loads all the stored checkpoints from trainings and computes the plots. 
+- `TrainingSample.ipynb` allows you to train a model and compute sharpness for a given dataset, architecture and optimizer
+- `DataAnalysis.ipynb` loads all the results from trainings and prepares the plots. If results are missing, it requires you to download all the existing checkpoints from training to extract the results, which might take a longer time, or alternatively retrain the models.
 All the existing checkpoints are available at: https://drive.google.com/drive/folders/10LuJDXzP6P_xH-z66Kh4KaWPfR1s0-t9?usp=sharing
-However, due to limited size on Github, we have not added them. Please note training all models is a very time-consuming and resource heavy task.
+However, due to limited size on Github, we have not added them here (>30GB).
 
 2. For running a model for a given configuration, we also offer a runnable Python file:
 - `python main.py train $dataset $model $optimizer $use_sam $load_existing` allows you to train a model

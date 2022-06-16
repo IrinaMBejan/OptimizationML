@@ -1,14 +1,17 @@
+import os
 from collections import namedtuple
+from datetime import datetime
 
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from datetime import datetime
+
 from models import *
 
 
 def train(model, optimizer, train_loader, epoch_num=-1, tolerance=0.01, path=None, device='cpu', max_nbr_epochs=10_000,
-          val_dataloader=None, sam=False):
+          val_dataloader=None, sam=False, dir_path="checkpoints"):
     """
     Args:
         model (nn.Module) :                             The model to be trained
@@ -138,18 +141,15 @@ def train(model, optimizer, train_loader, epoch_num=-1, tolerance=0.01, path=Non
                 checkpoint['validation_accuracy'] = model.val_accuracies
 
             if converged == False and curr_loss < tolerance:
-                ind = path.rindex('/')
-                new_path = f'{path[:ind]}/converged{path[ind:]}'
-                torch.save(checkpoint, f'checkpoints/{new_path}.pt')
+                new_path = f'converged/{path}'
+                torch.save(checkpoint, f'{dir_path}/{new_path}.pt')
                 converged = True
             if converged and (epoch + 1) % 50 == 0:
-                ind = path.rindex('/')
-                new_path = f'{path[:ind]}/epoch{epoch + 1}{path[ind:]}'
-                torch.save(checkpoint, f'checkpoints/{new_path}.pt')
+                new_path = f'epoch{epoch + 1}/{path}'
+                torch.save(checkpoint, f'{dir_path}/{new_path}.pt')
             elif epoch + 1 == max_nbr_epochs:
-                ind = path.rindex('/')
-                new_path = f'{path[:ind]}/epoch{epoch + 1}{path[ind:]}'
-                torch.save(checkpoint, f'checkpoints/{new_path}.pt')
+                new_path = f'epoch{epoch + 1}/{path}'
+                torch.save(checkpoint, f'{dir_path}/{new_path}.pt')
 
         # checking if the loss is small enough to stop
         if epoch_num == -1 and curr_loss < tolerance:
@@ -206,7 +206,7 @@ def get_model(architecture, dataset):
 
 
 def preprocess_data_for_sharpness(train_data, dataset, device):
-    # This cell preproccesses data for calculating the sharpness. If you change the dataset, make sure that this cell is rerun.
+    # This cell preproccesses data for calculating the sharpness.
     print(f'Preporcessing dataset {dataset} in order to calculate sharpness...')
     begin = datetime.now()
 
@@ -214,8 +214,61 @@ def preprocess_data_for_sharpness(train_data, dataset, device):
     y = torch.tensor(train_data.targets)
 
     x, y = x.to(device), y.to(device)
-    data = namedtuple('_','x y n')(x=x, y=y,n=len(y))
+    data = namedtuple('_', 'x y n')(x=x, y=y, n=len(y))
 
     print(f'Time needed {datetime.now() - begin}')
 
     return data
+
+
+def generate_dataframe(dataset, architecture, checkpoint_folder):
+    df = pd.DataFrame()
+
+    for epoch in [50, 100, 150, 200, 'converged']:
+        if epoch != 'converged':
+            directory = f'{checkpoint_folder}/{dataset}/{architecture}/epoch{epoch}/'
+        else:
+            directory = f'{checkpoint_folder}/{dataset}/{architecture}/converged/'
+
+        for file_name in os.listdir(directory):
+            row = {}
+
+            if file_name.endswith('_hessian.pt') or file_name.endswith('_sharpness.pt'):
+                continue
+
+            if 'SAM' in file_name:
+                row['Minimization'] = 'SAM'
+            else:
+                row['Minimization'] = 'regular'
+            row['Optimizer'] = file_name.replace('SAM_', '').replace('.pt', '').replace('_', ' ')
+            checkpoint = torch.load(f'{directory}{file_name}', map_location=torch.device('cpu'))
+
+            row['training_accuracy'] = checkpoint['training_accuracy'][-1].item()
+            row['Validation accuracy'] = checkpoint['validation_accuracy'][-1]
+            row['training_loss'] = checkpoint['training_loss'][-1]
+            row['val_loss'] = checkpoint['validation_loss'][-1]
+            row['Generalization gap'] = row['training_accuracy'] - row['Validation accuracy']
+            row['epoch'] = epoch
+
+            sharpness_file = file_name.replace('.pt', '_sharpness.pt')
+            if os.path.exists(directory + sharpness_file):
+                row['Sharpness'] = torch.load(directory + sharpness_file)['sharpness']
+            else:
+                row['Sharpness'] = np.nan
+
+            df = df.append(row, ignore_index=True)
+
+    return df
+
+
+def generate_dataframe_per_dataset(dataset, checkpoints_dir="checkpoints"):
+    df_simple = generate_dataframe(dataset=dataset, architecture='SimpleBatch', checkpoint_folder=checkpoints_dir)
+    df_simple['Architecture'] = 'SimpleBatch'
+    df_middle = generate_dataframe(dataset=dataset, architecture='MiddleBatch', checkpoint_folder=checkpoints_dir)
+    df_middle['Architecture'] = 'MiddleBatch'
+    df_complex = generate_dataframe(dataset=dataset, architecture='ComplexBatch', checkpoint_folder=checkpoints_dir)
+    df_complex['Architecture'] = 'ComplexBatch'
+
+    df = pd.concat([df_simple, df_middle, df_complex], axis=0)
+
+    return df
