@@ -127,20 +127,18 @@ def compute_sharpness(data, dataset, model, optimizer_name, store_dir):
             print(f'Use smaller stepsize than {lr}')
 
 
-def load_data_for_model(dataset, model_arch, optimizer, checkpoints="checkpoints"):
-    checkpoint_folder = os.path.join(checkpoints, f'{dataset}/{model_arch}/')
-
+def load_data_for_model(optimizer, checkpoint_folder):
     # Loading information about SGD training
-    checkpoint = torch.load(checkpoint_folder + optimizer + '.pt')
-    losses_sgd = checkpoint['training_losses']
-    acc_sgd = checkpoint['validation_accuracies']
-    sharpness_opt = torch.load(checkpoint_folder + optimizer + '_sharpness.pt')['sharpness']
+    checkpoint = torch.load(checkpoint_folder + '/' + optimizer + '.pt',  map_location=torch.device('cpu'))
+    losses_sgd = checkpoint['training_loss']
+    acc_sgd = checkpoint['validation_accuracy']
+    sharpness_opt = torch.load(checkpoint_folder + '/' + optimizer + '_sharpness.pt',  map_location=torch.device('cpu'))['sharpness']
 
     # Loading information about SAM SGD training
-    checkpoint_sam = torch.load(checkpoint_folder + 'sam_' + optimizer + '.pt')
-    losses_sam = checkpoint_sam['training_losses']
-    acc_sam = checkpoint_sam['validation_accuracies']
-    sharpness_sam = torch.load(checkpoint_folder+'sam_' + optimizer + '_sharpness.pt')['sharpness']
+    checkpoint_sam = torch.load(checkpoint_folder + '/SAM_' + optimizer + '.pt',  map_location=torch.device('cpu'))
+    losses_sam = checkpoint_sam['training_loss']
+    acc_sam = checkpoint_sam['validation_accuracy']
+    sharpness_sam = torch.load(checkpoint_folder+'/SAM_' + optimizer + '_sharpness.pt',  map_location=torch.device('cpu'))['sharpness']
 
     # Plotting both
     fig, ax = plt.subplots(2,1)
@@ -158,7 +156,7 @@ def load_data_for_model(dataset, model_arch, optimizer, checkpoints="checkpoints
     ax[1].legend()
 
     # Writing sharpness
-    print(f'Minimum sharpness of ' + optimizer + ': {sharpness_opt}')
+    print(f'Minimum sharpness of {optimizer}: {sharpness_opt}')
     print(f'Minimum sharpness of SAM: {sharpness_sam}')
 
 
@@ -197,20 +195,21 @@ def main():
     model = get_model(args.model_arch, args.dataset).to(device)
     optimizer = get_optimizer(args.optimizer, model, sam=args.sam)
     train_data, test_data, train_loader, test_loader = load_data(args.dataset)
-    store_dir = f'checkpoints/{args.dataset}/{args.model_arch}/'
+    store_dir = f'checkpoints/{args.dataset}/{args.model_arch}/epoch200'
+
     model_path = ('SAM_' if args.sam else '') + args.optimizer.upper()
 
     if args.type == "train":
-        model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=3, path=model_path, val_dataloader=test_loader, sam=args.sam, store_dir=store_dir)
+        model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam, dir_path=store_dir)
     elif args.type == "compute_sharpness":
         if not args.load_existing:
             # Retrain to be able to load them from disk
-            model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam, store_dir=store_dir)
+            model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam, dir_path=store_dir)
         data = preprocess_data_for_sharpness(train_data, args.dataset, device)
-        compute_sharpness(data, args.dataset, model, 'SAM_' if args.sam else '' + args.optimizer.lower(), store_dir)
+        compute_sharpness(data, args.dataset, model, model_path, store_dir)
     elif args.type == "plot":
         print('For plotting, it is mandatory all runs have been done previously. More exploration can be done in the DataAnalysis notebook.')
-        load_data_for_model(args.dataset, args.model_arch, args.optimizer.lower())
+        load_data_for_model(model_path, store_dir)
 
 
 if __name__ == "__main__":
