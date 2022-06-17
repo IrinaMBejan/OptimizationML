@@ -96,14 +96,14 @@ def get_optimizer(optimizer_name, model, sam=False):
     raise Exception("Given optimizer name is unknown!")
 
 
-def compute_sharpness(data, dataset, model, optimizer_name):
+def compute_sharpness(data, dataset, model, optimizer_name, store_dir):
     lr = 0.1 if dataset == 'FashionMNIST' else 1
     num_epochs = 100000
     batch_size = 128
 
     computed = False
 
-    path = os.path.join('checkpoints', optimizer_name, '.pt')
+    path = os.path.join(store_dir, optimizer_name + '.pt')
     checkpoint = torch.load(path, map_location=torch.device('cpu'))
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -113,7 +113,7 @@ def compute_sharpness(data, dataset, model, optimizer_name):
             sharpnesses, losses = minimum_shaprness_eff(data, model, batch_size, lr, num_epochs=num_epochs, optimizer_file=path)
 
             # storing the sharpness
-            sharpness_path = os.path.join('checkpoints', optimizer_name, '_sharpness.pt')
+            sharpness_path = os.path.join(store_dir, optimizer_name + '_sharpness.pt')
             checkpoint = {'sharpnesses':sharpnesses, 'sharpness':sharpnesses[-1], 'losses': losses}
             torch.save(checkpoint, sharpness_path)
 
@@ -197,16 +197,17 @@ def main():
     model = get_model(args.model_arch, args.dataset).to(device)
     optimizer = get_optimizer(args.optimizer, model, sam=args.sam)
     train_data, test_data, train_loader, test_loader = load_data(args.dataset)
-    model_path = f'{args.dataset}/{args.model_arch}/' + ('sam_' if args.sam else '') + args.optimizer.lower()
+    store_dir = f'checkpoints/{args.dataset}/{args.model_arch}/'
+    model_path = ('SAM_' if args.sam else '') + args.optimizer.upper()
 
     if args.type == "train":
-        model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=3, path=model_path, val_dataloader=test_loader, sam=args.sam)
+        model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=3, path=model_path, val_dataloader=test_loader, sam=args.sam, store_dir=store_dir)
     elif args.type == "compute_sharpness":
         if not args.load_existing:
             # Retrain to be able to load them from disk
-            model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam)
+            model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam, store_dir=store_dir)
         data = preprocess_data_for_sharpness(train_data, args.dataset, device)
-        compute_sharpness(data, args.dataset, model, 'sam_' if args.sam else '' + args.optimizer.lower())
+        compute_sharpness(data, args.dataset, model, 'SAM_' if args.sam else '' + args.optimizer.lower(), store_dir)
     elif args.type == "plot":
         print('For plotting, it is mandatory all runs have been done previously. More exploration can be done in the DataAnalysis notebook.')
         load_data_for_model(args.dataset, args.model_arch, args.optimizer.lower())
