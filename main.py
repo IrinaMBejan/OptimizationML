@@ -195,7 +195,8 @@ def main():
     model = get_model(args.model_arch, args.dataset).to(device)
     optimizer = get_optimizer(args.optimizer, model, sam=args.sam)
     train_data, test_data, train_loader, test_loader = load_data(args.dataset)
-    store_dir = f'checkpoints/{args.dataset}/{args.model_arch}/epoch200'
+    store_dir = f'checkpoints/{args.dataset}/{args.model_arch}'
+    load_dir = os.path.join(store_dir, 'epoch200')
 
     model_path = ('SAM_' if args.sam else '') + args.optimizer.upper()
 
@@ -206,10 +207,10 @@ def main():
             # Retrain to be able to load them from disk
             model = train(model, optimizer, train_loader=train_loader, device=device, max_nbr_epochs=200, path=model_path, val_dataloader=test_loader, sam=args.sam, dir_path=store_dir)
         data = preprocess_data_for_sharpness(train_data, args.dataset, device)
-        compute_sharpness(data, args.dataset, model, model_path, store_dir)
+        compute_sharpness(data, args.dataset, model, model_path, load_dir)
     elif args.type == "plot":
         print('For plotting, it is mandatory all runs have been done previously. More exploration can be done in the DataAnalysis notebook.')
-        load_data_for_model(model_path, store_dir)
+        load_data_for_model(model_path, load_dir)
 
 
 if __name__ == "__main__":
